@@ -55,10 +55,14 @@ export const mockRestaurants: Restaurant[] = [
 ];
 
 export const categories = [
-  "Saludable",
-  "Vegano",
   "Sin TACC",
+  "Vegano",
+  "Vegetariano",
+  "Sin lactosa",
+  "Sin azúcar",
+  "Saludable",
   "Keto",
+  "Sin frutos secos",
 ];
 
 export const notificationPool: Notification[] = [

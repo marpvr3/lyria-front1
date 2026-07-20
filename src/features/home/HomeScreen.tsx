@@ -3,7 +3,6 @@ import type { HomeScreenProps } from "./domain/home.types";
 import { categories, notificationPool, promoSlides } from "./data/home.mock";
 import { AppShell } from "@/layouts/AppShell";
 import { HomeHeader } from "./components/HomeHeader";
-import { HomeGreeting } from "./components/HomeGreeting";
 import { CategoryFilters } from "./components/CategoryFilters";
 import { BestSellerList } from "./components/BestSellerList";
 import { PromoCard } from "./components/PromoCard";
@@ -38,8 +37,6 @@ export function HomeScreen({
 
   const notifications = useMemo(() => notificationPool, []);
 
-  const initials = user?.nombre ? user.nombre.slice(0, 2).toUpperCase() : "LY";
-
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveSlide((current) => (current + 1) % promoSlides.length);
@@ -50,23 +47,25 @@ export function HomeScreen({
 
   return (
     <AppShell>
-      <div className={notificationsOpen ? "pointer-events-none" : ""}>
-        {/* Panel verde superior */}
-        <div className="px-6 pt-[34px]">
+      <main
+        className={`min-h-full bg-sage ${
+          notificationsOpen ? "pointer-events-none" : ""
+        }`}
+      >
+        <section className="bg-sage px-6 pt-8 pb-10">
           <HomeHeader
+            user={user}
             profile={profile}
-            initials={initials}
             onMap={onMap}
             onOpenNotifications={() => setNotificationsOpen(true)}
             onNavigate={onNavigate}
           />
+        </section>
 
-          <HomeGreeting user={user} />
-        </div>
-
-        {/* Content card */}
-        <div className="rounded-t-[30px] bg-cream-light px-6 pt-14 pb-[150px]">
+        <section className="-mt-5 min-h-[650px] rounded-t-[34px] bg-white px-5 pt-8 pb-[135px] shadow-[0_-12px_30px_rgba(108,118,93,0.16)]">
           <CategoryFilters categories={categories} onCategory={onCategory} />
+
+          <div className="my-6 h-px w-full bg-sage/25" />
 
           <BestSellerList
             restaurants={bestSellers}
@@ -74,21 +73,25 @@ export function HomeScreen({
             onRecommend={onRecommend}
           />
 
-          <PromoCard
-            activePromo={activePromo}
-            heroPlace={heroPlace}
-            promoSlides={promoSlides}
-            activeSlide={activeSlide}
-            onSlideChange={setActiveSlide}
-          />
+          <div className="mt-5">
+            <PromoCard
+              activePromo={activePromo}
+              heroPlace={heroPlace}
+              promoSlides={promoSlides}
+              activeSlide={activeSlide}
+              onSlideChange={setActiveSlide}
+            />
+          </div>
 
-          <RecommendedGrid
-            restaurants={recommended}
-            onOpen={onOpen}
-            onFavorites={onFavorites}
-          />
-        </div>
-      </div>
+          <div className="mt-6">
+            <RecommendedGrid
+              restaurants={recommended}
+              onOpen={onOpen}
+              onFavorites={onFavorites}
+            />
+          </div>
+        </section>
+      </main>
 
       <NotificationsDrawer
         open={notificationsOpen}
