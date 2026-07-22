@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Search, SlidersHorizontal } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import type { Profile, User } from "../domain/home.types";
 
 interface HomeHeaderProps {
@@ -11,7 +11,6 @@ interface HomeHeaderProps {
 }
 
 export function HomeHeader({
-  onMap,
   onOpenNotifications,
 }: HomeHeaderProps) {
   const [search, setSearch] = useState("");

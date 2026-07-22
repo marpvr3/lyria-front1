@@ -35,7 +35,19 @@ export function HomeScreen({
   const heroPlace = bestSellers[activeSlide] ?? bestSellers[0] ?? restaurants[0];
   const activePromo = promoSlides[activeSlide];
 
-  const notifications = useMemo(() => notificationPool, []);
+  const notifications = useMemo(
+    () =>
+      notificationPool.map((notification, index) => ({
+        id: String(index),
+        title: notification.title,
+        message: "",
+        type:
+          notification.icon === "heart"
+            ? ("favorite" as const)
+            : ("restaurant" as const),
+      })),
+    [],
+  );
 
   useEffect(() => {
     const interval = setInterval(() => {
