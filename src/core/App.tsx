@@ -59,7 +59,6 @@ function App() {
     return (
       <RegisterScreen
         onBack={() => setScreen("welcome")}
-        onSubmit={() => setScreen("home")}
         onLogin={() => setScreen("login")}
       />
     );
