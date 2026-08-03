@@ -97,19 +97,6 @@ features/NombreFeature/
 
 ---
 
-## Reglas de entorno
-
-- Las variables públicas del frontend deben iniciar con `VITE_`.
-- No guardar secretos en variables `VITE_` (quedan expuestas en el bundle del cliente).
-- La URL base del API se lee desde `VITE_API_BASE_URL`.
-- El acceso tipado a variables de entorno se centraliza en `src/core/config/env.ts`.
-- `.env.example` documenta las variables disponibles y sí se versiona; `.env` y `.env.*` (incluido `.env.local`) están ignorados por Git.
-- No consumir el backend sin una tarea explícita que lo solicite.
-- Todo consumo HTTP debe pasar por `src/core/http/apiClient.ts`; no usar `fetch` disperso en features.
-- No consumir endpoints sin un contrato conocido (no inventar rutas ni tipos de respuesta).
-
----
-
 ## Reglas para Claude Code
 
 - Revisar la estructura existente antes de modificar o crear archivos.

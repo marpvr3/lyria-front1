@@ -3,9 +3,17 @@
 @theme {
   --font-sans: "Montserrat", sans-serif;
 
-  --color-sage: #6c765d;
-  --color-leaf: #a3b153;
+  --color-cream: #F3EBD6;
+  --color-cream-light: #f8f7f2;
+  --color-sage: #6C765D;
+  --color-sage-dark: #5A6350;
+  --color-leaf: #9bac55;
+  --color-leaf-dark: #6B872F;
+  --color-leaf-deep: #4F6B24;
+  --color-leaf-deeper: #3F551D;
+  --color-leaf-bright: #a8bb52;
   --color-rose: #ebb5b2;
-  --color-cream: #fbf6e3;
-  --color-white: #ffffff;
+  --color-rose-dark: #C08E8E;
+  --color-text-dark: #394032;
+  --color-text-darker: #331f1f;
 }

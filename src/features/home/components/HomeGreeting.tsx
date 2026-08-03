@@ -6,20 +6,19 @@ interface HomeGreetingProps {
 
 function getGreeting(user: User | null): string {
   if (!user?.nombre) return "Buen Día";
-  return `Buen día, ${user.nombre.split(" ")[0]}`;
+  return `Buen Día, ${user.nombre.split(" ")[0]}`;
 }
 
 export function HomeGreeting({ user }: HomeGreetingProps) {
   return (
-    <section className="mt-4" aria-labelledby="home-title">
+    <section className="mb-7" aria-labelledby="home-title">
       <h1
         id="home-title"
-        className="text-[24px] leading-none font-black tracking-tight text-white"
+        className="text-[26px] leading-none font-black tracking-tight text-white"
       >
         {getGreeting(user)}
       </h1>
-
-      <p className="mt-1 text-[12px] font-bold text-white">
+      <p className="mt-1.5 text-[11px] font-bold text-white">
         Descubre lugares que se adaptan a ti.
       </p>
     </section>
