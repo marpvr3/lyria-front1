@@ -150,6 +150,7 @@ export function RegisterScreen({
 
     setSelectedPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
+
     clearMessages();
   }
 
@@ -207,15 +208,8 @@ export function RegisterScreen({
 
       const request = {
         ...baseRequest,
-
-        // La imagen se selecciona y se muestra en pantalla.
-        // Por ahora se envía null hasta tener un servicio
-        // para guardar archivos.
         photoUrl: null,
       };
-
-      console.info("Datos enviados:", request);
-      console.info("Foto seleccionada:", selectedPhoto);
 
       await registerUser(request);
 
@@ -250,7 +244,7 @@ export function RegisterScreen({
     <main className="flex min-h-screen w-full items-center justify-center bg-[#ECEEE8] sm:px-5 sm:py-6">
       <section className="relative flex h-screen min-h-0 w-full max-w-[390px] flex-col overflow-hidden bg-cream sm:h-[844px] sm:max-h-[844px] sm:rounded-[38px] sm:shadow-[0_24px_60px_rgba(57,64,50,0.14)]">
         {/* Encabezado */}
-        <header className="grid h-[165px] shrink-0 grid-cols-[40px_1fr_40px] items-center bg-rose px-5 pb-4">
+        <header className="grid h-[150px] shrink-0 grid-cols-[40px_1fr_40px] items-center bg-rose px-5 pb-3">
           <button
             type="button"
             onClick={onBack}
@@ -274,11 +268,12 @@ export function RegisterScreen({
         </header>
 
         {/* Tarjeta blanca */}
-        <section className="relative -mt-7 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[34px] bg-white shadow-[0_-10px_28px_rgba(57,64,50,0.06)]">
-          <div className="h-full min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <section className="relative -mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[34px] bg-white shadow-[0_-10px_28px_rgba(57,64,50,0.06)]">
+          {/* Scroll únicamente dentro de la tarjeta */}
+          <div className="h-full min-h-0 overflow-y-auto overscroll-contain px-6 pb-8 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <form
               onSubmit={handleSubmit}
-              className="mx-auto w-full max-w-[326px]"
+              className="mx-auto w-full max-w-[338px]"
             >
               {/* Nombre y apellido */}
               <div className="grid grid-cols-2 gap-3">
@@ -287,9 +282,9 @@ export function RegisterScreen({
                     Nombre
                   </span>
 
-                  <div className="flex h-[48px] min-w-0 items-center gap-2 rounded-full bg-cream px-4 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                  <div className="flex h-[52px] min-w-0 items-center gap-2.5 rounded-full bg-cream px-4 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
                     <UserRound
-                      size={15}
+                      size={17}
                       strokeWidth={2}
                       className="shrink-0 text-leaf"
                     />
@@ -304,7 +299,7 @@ export function RegisterScreen({
                         setFirstName(event.target.value);
                         clearMessages();
                       }}
-                      className="min-w-0 flex-1 bg-transparent text-[11px] text-sage outline-none placeholder:text-sage/40"
+                      className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
                     />
                   </div>
                 </label>
@@ -314,9 +309,9 @@ export function RegisterScreen({
                     Apellido
                   </span>
 
-                  <div className="flex h-[48px] min-w-0 items-center gap-2 rounded-full bg-cream px-4 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                  <div className="flex h-[52px] min-w-0 items-center gap-2.5 rounded-full bg-cream px-4 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
                     <UserRound
-                      size={15}
+                      size={17}
                       strokeWidth={2}
                       className="shrink-0 text-leaf"
                     />
@@ -331,28 +326,28 @@ export function RegisterScreen({
                         setLastName(event.target.value);
                         clearMessages();
                       }}
-                      className="min-w-0 flex-1 bg-transparent text-[11px] text-sage outline-none placeholder:text-sage/40"
+                      className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
                     />
                   </div>
                 </label>
               </div>
 
-              {/* Correo electrónico */}
+              {/* Correo */}
               <label className="mt-3 block">
-                <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
                   Correo electrónico
                 </span>
 
-                <div className="flex h-[50px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                <div className="flex h-[52px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
                   <Mail
-                    size={16}
+                    size={17}
                     strokeWidth={2}
                     className="shrink-0 text-leaf"
                   />
 
                   <input
                     type="email"
-                    placeholder="Ingresa tu correo electrónico"
+                    placeholder="Ingresa tu correo"
                     autoComplete="email"
                     required
                     value={form.email}
@@ -367,15 +362,15 @@ export function RegisterScreen({
                 </div>
               </label>
 
-              {/* Número de teléfono */}
+              {/* Teléfono */}
               <label className="mt-3 block">
-                <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
                   Número de teléfono
                 </span>
 
-                <div className="flex h-[50px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                <div className="flex h-[52px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
                   <Phone
-                    size={16}
+                    size={17}
                     strokeWidth={2}
                     className="shrink-0 text-leaf"
                   />
@@ -404,9 +399,9 @@ export function RegisterScreen({
                     Contraseña
                   </span>
 
-                  <div className="flex h-[48px] min-w-0 items-center gap-1 rounded-full bg-cream px-3.5 transition focus-within:shadow-[0_0_0_3px_rgba(235,181,178,0.17)]">
+                  <div className="flex h-[52px] min-w-0 items-center gap-1 rounded-full bg-cream px-3.5 transition focus-within:shadow-[0_0_0_3px_rgba(235,181,178,0.17)]">
                     <LockKeyhole
-                      size={15}
+                      size={16}
                       strokeWidth={2}
                       className="shrink-0 text-rose"
                     />
@@ -459,9 +454,9 @@ export function RegisterScreen({
                     Repetir contraseña
                   </span>
 
-                  <div className="flex h-[48px] min-w-0 items-center gap-1 rounded-full bg-cream px-3.5 transition focus-within:shadow-[0_0_0_3px_rgba(235,181,178,0.17)]">
+                  <div className="flex h-[52px] min-w-0 items-center gap-1 rounded-full bg-cream px-3.5 transition focus-within:shadow-[0_0_0_3px_rgba(235,181,178,0.17)]">
                     <LockKeyhole
-                      size={15}
+                      size={16}
                       strokeWidth={2}
                       className="shrink-0 text-rose"
                     />
@@ -511,15 +506,15 @@ export function RegisterScreen({
                 </label>
               </div>
 
-              {/* Fecha de nacimiento */}
+              {/* Fecha */}
               <label className="mt-3 block">
-                <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
                   Fecha de nacimiento
                 </span>
 
-                <div className="flex h-[50px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                <div className="flex h-[52px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
                   <CalendarDays
-                    size={16}
+                    size={17}
                     strokeWidth={2}
                     className="shrink-0 text-leaf"
                   />
@@ -539,10 +534,11 @@ export function RegisterScreen({
                 </div>
               </label>
 
-              {/* Foto de perfil */}
+              {/* Foto */}
               <div className="mt-3">
-                <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
                   Foto de perfil
+
                   <span className="ml-1 font-normal text-sage/45">
                     opcional
                   </span>
@@ -557,15 +553,15 @@ export function RegisterScreen({
                 />
 
                 {photoPreview ? (
-                  <div className="flex h-[58px] items-center gap-3 rounded-full bg-cream p-1.5 pr-4">
+                  <div className="flex h-[54px] items-center gap-3 rounded-full bg-cream p-1.5 pr-4">
                     <img
                       src={photoPreview}
                       alt="Vista previa de la foto"
-                      className="h-11 w-11 shrink-0 rounded-full object-cover"
+                      className="h-10 w-10 shrink-0 rounded-full object-cover"
                     />
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[10.5px] font-semibold text-sage">
+                      <p className="truncate text-[10px] font-semibold text-sage">
                         {selectedPhoto?.name}
                       </p>
 
@@ -589,10 +585,10 @@ export function RegisterScreen({
                     onClick={() =>
                       photoInputRef.current?.click()
                     }
-                    className="flex h-[50px] w-full items-center gap-3 rounded-full bg-cream px-5 text-left transition hover:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]"
+                    className="flex h-[52px] w-full items-center gap-3 rounded-full bg-cream px-5 text-left transition hover:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]"
                   >
                     <Camera
-                      size={16}
+                      size={17}
                       strokeWidth={2}
                       className="shrink-0 text-leaf"
                     />
@@ -628,7 +624,7 @@ export function RegisterScreen({
                       event.target.checked,
                     )
                   }
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[#6c765d]"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#6c765d]"
                 />
 
                 <span className="text-[9px] leading-[1.45] text-sage/60">
@@ -655,6 +651,7 @@ export function RegisterScreen({
                 </p>
               )}
 
+              {/* Botón dentro del flujo normal */}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -666,7 +663,7 @@ export function RegisterScreen({
                   : "Registrarse"}
               </button>
 
-              <p className="mt-4 text-center text-[9.5px] text-sage/60">
+              <p className="mt-3 text-center text-[9.5px] text-sage/60">
                 ¿Ya tienes una cuenta?{" "}
                 <button
                   type="button"
