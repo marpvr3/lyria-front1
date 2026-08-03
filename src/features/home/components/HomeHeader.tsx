@@ -1,58 +1,56 @@
-import { Search, Bell, UserRound } from "lucide-react";
-import type { Profile } from "../domain/home.types";
+import { useState } from "react";
+import { Bell, Search } from "lucide-react";
+import type { Profile, User } from "../domain/home.types";
 
 interface HomeHeaderProps {
+  user: User | null;
   profile: Profile | null;
-  initials: string;
   onMap: () => void;
   onOpenNotifications: () => void;
   onNavigate: (screen: string) => void;
 }
 
 export function HomeHeader({
-  profile,
-  onMap,
   onOpenNotifications,
-  onNavigate,
 }: HomeHeaderProps) {
-  return (
-    <header className="mb-[18px] flex items-center justify-between">
-      <button
-        className="flex h-[30px] w-[165px] items-center justify-between rounded-full bg-white px-4 pl-4 pr-2.5 text-[11px] font-semibold text-sage shadow-[0_4px_10px_rgba(31,38,30,0.08)] transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf"
-        type="button"
-        onClick={onMap}
-        aria-label="Buscar restaurantes"
-      >
-        <span>Buscar</span>
-        <Search size={14} strokeWidth={2.3} className="text-leaf" />
-      </button>
+  const [search, setSearch] = useState("");
 
-      <div className="flex items-center gap-2">
+  return (
+    <header className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="max-w-[230px]">
+          <p className="text-[17px] font-black leading-[1.12] text-white">
+            Descubre lugares que se adaptan a ti.
+          </p>
+        </div>
+
         <button
-          className="grid h-[31px] w-[31px] place-items-center rounded-full bg-white text-sage shadow-[0_4px_10px_rgba(31,38,30,0.1)] transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf"
           type="button"
           onClick={onOpenNotifications}
+          className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full bg-leaf text-white shadow-[0_8px_18px_rgba(108,118,93,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           aria-label="Abrir notificaciones"
         >
-          <Bell size={15} />
+          <Bell size={18} />
         </button>
+      </div>
 
-        <button
-          className="grid h-[31px] w-[31px] place-items-center overflow-hidden rounded-full bg-white text-sage shadow-[0_4px_10px_rgba(31,38,30,0.1)] transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf"
-          type="button"
-          onClick={() => onNavigate("profile")}
-          aria-label="Abrir perfil"
-        >
-          {profile?.photo ? (
-            <img
-              src={profile.photo}
-              alt="Foto de perfil"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <UserRound size={15} />
-          )}
-        </button>
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search
+            size={17}
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sage"
+          />
+
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar restaurantes"
+            className="h-[48px] w-full rounded-full bg-white pl-11 pr-4 text-[13px] font-semibold text-sage shadow-[0_8px_18px_rgba(108,118,93,0.18)] outline-none placeholder:text-sage/55 focus:ring-2 focus:ring-white"
+          />
+        </div>
+
+        
       </div>
     </header>
   );
