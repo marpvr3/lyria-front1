@@ -1,118 +1,85 @@
-import { useEffect, useRef } from "react";
-import { X, Utensils, Heart, LogOut, Bell } from "lucide-react";
-import type { Notification } from "../domain/home.types";
+import { Bell, Heart, MapPin, Star, Utensils, X } from "lucide-react";
+import "./notifications.css";
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  type?: "restaurant" | "favorite" | "promo" | "map";
+};
 
 interface NotificationsDrawerProps {
   open: boolean;
-  notifications: Notification[];
-  showLogout: boolean;
+  notifications: NotificationItem[];
   onClose: () => void;
-  onLogout: () => void;
+  showLogout?: boolean;
+  onLogout?: () => void;
 }
+
+const notificationIcons = {
+  restaurant: Utensils,
+  favorite: Heart,
+  promo: Star,
+  map: MapPin,
+};
 
 export function NotificationsDrawer({
   open,
   notifications,
-  showLogout,
   onClose,
-  onLogout,
 }: NotificationsDrawerProps) {
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    closeButtonRef.current?.focus();
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  if (!open) return null;
 
   return (
-    <>
-      {/* Overlay */}
-      <div
-        className={`fixed inset-0 z-[9998] bg-[rgba(31,38,30,0.18)] transition-opacity duration-250 ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Drawer */}
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label="Notificaciones"
-        className={`fixed top-0 right-0 z-[9999] flex h-dvh w-[89%] max-w-md flex-col overflow-hidden rounded-l-[48px] bg-rose px-[34px] pt-[76px] pb-[120px] text-text-darker shadow-[-12px_0_30px_rgba(31,38,30,0.18)] transition-transform duration-[280ms] ease-in-out ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {/* Botón cerrar */}
+    <aside className="notifications-drawer-backdrop absolute inset-0 z-[80] bg-sage/35">
+      <div className="notifications-drawer-panel absolute inset-y-0 right-0 w-[82%] max-w-[320px] rounded-l-[34px] bg-rose px-7 pt-10 shadow-[-18px_0_45px_rgba(108,118,93,0.28)]">
         <button
-          ref={closeButtonRef}
           type="button"
-          className="absolute top-5 right-[18px] grid h-[30px] w-[30px] place-items-center text-text-darker focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-darker"
           onClick={onClose}
+          className="absolute right-5 top-5 grid h-8 w-8 place-items-center rounded-full text-sage transition hover:bg-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           aria-label="Cerrar notificaciones"
         >
-          <X size={20} />
+          <X size={18} strokeWidth={2} />
         </button>
 
-        {/* Cabecera */}
-        <div className="mb-[34px] flex items-center justify-center border-b border-text-darker/30 pb-8">
-          <span className="flex items-center justify-center gap-[11px]">
-            <Bell size={20} className="text-text-darker" />
-            <strong className="text-[17px] font-black text-text-darker">
-              Notificaciones
-            </strong>
+        <header className="mb-8 flex items-center gap-3 text-white">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-white/25">
+            <Bell size={19} strokeWidth={2} />
           </span>
-        </div>
 
-        {/* Lista */}
-        <div className="flex flex-1 flex-col gap-0 overflow-y-auto">
-          {notifications.map((notification) => (
-            <button
-              key={notification.title}
-              type="button"
-              className="grid grid-cols-[40px_1fr] items-center gap-3 border-b border-text-darker/30 px-0 py-[18px] text-left text-text-darker focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-darker"
-              onClick={() => {}}
-            >
-              <span className="grid h-[34px] w-[34px] place-items-center rounded-full border-2 border-text-darker text-text-darker">
-                {notification.icon === "utensils" ? (
-                  <Utensils size={16} />
-                ) : (
-                  <Heart size={16} />
-                )}
-              </span>
-              <span className="flex flex-col">
-                <strong className="text-xs leading-tight font-extrabold text-text-darker">
-                  {notification.title}
-                </strong>
-              </span>
-            </button>
-          ))}
-        </div>
+          <h2 className="text-[20px] font-black">Notificaciones</h2>
+        </header>
 
-        {/* Logout */}
-        {showLogout && (
-          <button
-            type="button"
-            className="absolute right-[34px] bottom-[34px] left-[34px] flex h-[46px] items-center justify-center gap-[9px] rounded-full border-[1.5px] border-text-darker/85 bg-transparent text-[13px] font-extrabold text-text-darker transition-colors hover:bg-text-darker/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-darker"
-            onClick={() => {
-              onClose();
-              onLogout();
-            }}
-          >
-            <LogOut size={16} />
-            Cerrar sesión
-          </button>
-        )}
-      </aside>
-    </>
+        <div className="h-px w-full bg-white/35" />
+
+        <div className="mt-6 space-y-4">
+          {notifications.map((notification) => {
+            const Icon =
+              notificationIcons[notification.type ?? "restaurant"] ?? Bell;
+
+            return (
+              <article
+                key={notification.id}
+                className="flex items-start gap-4 border-b border-white/35 pb-4"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-white text-sage shadow-[0_6px_14px_rgba(108,118,93,0.14)]">
+                  <Icon size={20} strokeWidth={2} />
+                </span>
+
+                <div className="pt-1">
+                  <h3 className="text-[12px] font-black leading-tight text-white">
+                    {notification.title}
+                  </h3>
+
+                  <p className="mt-1 text-[11px] font-semibold leading-tight text-white/90">
+                    {notification.message}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </aside>
   );
 }
