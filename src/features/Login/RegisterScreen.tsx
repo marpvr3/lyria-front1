@@ -243,7 +243,7 @@ export function RegisterScreen({
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-[#ECEEE8] sm:px-5 sm:py-6">
       <section className="relative flex h-screen min-h-0 w-full max-w-[390px] flex-col overflow-hidden bg-cream sm:h-[844px] sm:max-h-[844px] sm:rounded-[38px] sm:shadow-[0_24px_60px_rgba(57,64,50,0.14)]">
-        {/* Encabezado */}
+   
         <header className="grid h-[150px] shrink-0 grid-cols-[40px_1fr_40px] items-center bg-rose px-5 pb-3">
           <button
             type="button"
@@ -267,15 +267,15 @@ export function RegisterScreen({
           />
         </header>
 
-        {/* Tarjeta blanca */}
+       
         <section className="relative -mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[34px] bg-white shadow-[0_-10px_28px_rgba(57,64,50,0.06)]">
-          {/* Scroll únicamente dentro de la tarjeta */}
+     
           <div className="h-full min-h-0 overflow-y-auto overscroll-contain px-6 pb-8 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <form
               onSubmit={handleSubmit}
               className="mx-auto w-full max-w-[338px]"
             >
-              {/* Nombre y apellido */}
+        
               <div className="grid grid-cols-2 gap-3">
                 <label className="min-w-0">
                   <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
@@ -332,7 +332,7 @@ export function RegisterScreen({
                 </label>
               </div>
 
-              {/* Correo */}
+       
               <label className="mt-3 block">
                 <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
                   Correo electrónico
@@ -362,7 +362,6 @@ export function RegisterScreen({
                 </div>
               </label>
 
-              {/* Teléfono */}
               <label className="mt-3 block">
                 <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
                   Número de teléfono
@@ -392,7 +391,7 @@ export function RegisterScreen({
                 </div>
               </label>
 
-              {/* Contraseñas */}
+           
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <label className="min-w-0">
                   <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
@@ -506,7 +505,7 @@ export function RegisterScreen({
                 </label>
               </div>
 
-              {/* Fecha */}
+          
               <label className="mt-3 block">
                 <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
                   Fecha de nacimiento
@@ -600,7 +599,7 @@ export function RegisterScreen({
                 )}
               </div>
 
-              {/* Restricciones */}
+          
               <RestrictionsMultiSelect
                 ref={restrictionsRef}
                 label="Restricción alimenticia"
@@ -612,7 +611,7 @@ export function RegisterScreen({
                 onRetry={reload}
               />
 
-              {/* Términos */}
+         
               <label className="mt-4 flex cursor-pointer items-start gap-2.5">
                 <input
                   type="checkbox"
@@ -651,7 +650,7 @@ export function RegisterScreen({
                 </p>
               )}
 
-              {/* Botón dentro del flujo normal */}
+           
               <button
                 type="submit"
                 disabled={isSubmitting}
