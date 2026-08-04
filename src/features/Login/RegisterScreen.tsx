@@ -28,7 +28,7 @@ import type { RegisterUserFormState } from "./domain/users.types";
 import { useActiveRestrictions } from "./hooks/useActiveRestrictions";
 
 import {
-  buildCreateUserRequest,
+  buildMobileRegistrationRequest,
   getRegisterErrorMessage,
   registerUser,
 } from "./services/users.api";
@@ -36,14 +36,58 @@ import {
 const MIN_PASSWORD_LENGTH = 6;
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 
+/**
+ * Tiempo que se deja visible "Cuenta creada correctamente." antes de llevar a
+ * la persona usuaria al login. Suficiente para leerlo sin sentir que la
+ * pantalla se queda congelada.
+ */
+const REDIRECT_TO_LOGIN_DELAY_MS = 2_500;
+
+/** Comprobación básica de formato: `algo@algo.algo` sin espacios. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const EMPTY_FORM: RegisterUserFormState = {
-  fullName: "",
+  name: "",
+  lastName: "",
   email: "",
-  password: "",
-  birthDate: "",
   phone: "",
+  password: "",
+  confirmPassword: "",
+  birthDate: "",
   acceptsTerms: false,
 };
+
+/**
+ * Valida el formulario antes de enviar y devuelve el primer error encontrado.
+ *
+ * Las restricciones alimentarias y la foto de perfil son opcionales, por eso no
+ * aparecen aquí.
+ */
+function getFormError(form: RegisterUserFormState): string | null {
+  if (!form.name.trim()) return "Ingresa tu nombre.";
+  if (!form.lastName.trim()) return "Ingresa tu apellido.";
+
+  if (!form.email.trim()) return "Ingresa tu correo electrónico.";
+  if (!EMAIL_PATTERN.test(form.email.trim())) {
+    return "Ingresa un correo electrónico válido.";
+  }
+
+  if (!form.phone.trim()) return "Ingresa tu número de teléfono.";
+
+  if (!form.password) return "Ingresa tu contraseña.";
+  if (!form.confirmPassword) return "Repite tu contraseña.";
+  if (form.password !== form.confirmPassword) {
+    return "Las contraseñas no coinciden.";
+  }
+
+  if (!form.birthDate) return "Ingresa tu fecha de nacimiento.";
+
+  if (!form.acceptsTerms) {
+    return "Debes aceptar los términos de uso y la política de privacidad.";
+  }
+
+  return null;
+}
 
 interface RegisterScreenProps {
   onBack: () => void;
@@ -54,14 +98,9 @@ export function RegisterScreen({
   onBack,
   onLogin,
 }: RegisterScreenProps) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
-
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [selectedPhoto, setSelectedPhoto] =
     useState<File | null>(null);
@@ -96,6 +135,14 @@ export function RegisterScreen({
 
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // Referencia siempre apuntando al último `onLogin`: evita que el temporizador
+  // se reinicie si el padre vuelve a renderizar con otra instancia del callback.
+  const onLoginRef = useRef(onLogin);
+
+  useEffect(() => {
+    onLoginRef.current = onLogin;
+  });
+
   useEffect(() => {
     return () => {
       if (photoPreview) {
@@ -103,6 +150,23 @@ export function RegisterScreen({
       }
     };
   }, [photoPreview]);
+
+  /**
+   * Tras un registro exitoso, deja leer el mensaje y lleva al login.
+   *
+   * No hay inicio de sesión ni token de por medio: solo un cambio de pantalla.
+   * El `clearTimeout` del cleanup evita que el callback se dispare si el
+   * componente se desmonta antes (por ejemplo si se pulsa "Volver").
+   */
+  useEffect(() => {
+    if (!successMessage) return;
+
+    const timer = window.setTimeout(() => {
+      onLoginRef.current();
+    }, REDIRECT_TO_LOGIN_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   function clearMessages() {
     setFormError(null);
@@ -174,52 +238,38 @@ export function RegisterScreen({
 
     restrictionsRef.current?.close();
 
+    // Corta el doble submit (doble clic o Enter repetido).
     if (isSubmitting) {
       return;
     }
 
-    if (!firstName.trim()) {
-      setFormError("Ingresa tu nombre.");
+    const validationError = getFormError(form);
+
+    if (validationError) {
+      setFormError(validationError);
+      setSuccessMessage(null);
       return;
     }
-
-    if (!lastName.trim()) {
-      setFormError("Ingresa tu apellido.");
-      return;
-    }
-
-    if (form.password !== confirmPassword) {
-      setFormError("Las contraseñas no coinciden.");
-      return;
-    }
-
-    const completedForm: RegisterUserFormState = {
-      ...form,
-      fullName: `${firstName.trim()} ${lastName.trim()}`,
-    };
 
     setFormError(null);
     setSuccessMessage(null);
     setIsSubmitting(true);
 
     try {
-      const baseRequest =
-        buildCreateUserRequest(completedForm);
-
-      const request = {
-        ...baseRequest,
-        photoUrl: null,
-      };
-
-      await registerUser(request);
+      // Solo viajan las ocho claves del contrato: ni confirmPassword, ni los
+      // términos, ni el archivo de imagen, ni roleId (lo asigna el backend).
+      await registerUser(
+        buildMobileRegistrationRequest(
+          form,
+          selectedRestrictionIds,
+        ),
+      );
 
       setSuccessMessage(
         "Cuenta creada correctamente.",
       );
 
-      setFirstName("");
-      setLastName("");
-      setConfirmPassword("");
+      // Sin sesión automática, sin token y sin navegar: solo se limpia.
       setForm(EMPTY_FORM);
       setSelectedRestrictionIds([]);
       setShowPassword(false);
@@ -294,11 +344,13 @@ export function RegisterScreen({
                       placeholder="Nombre"
                       autoComplete="given-name"
                       required
-                      value={firstName}
-                      onChange={(event) => {
-                        setFirstName(event.target.value);
-                        clearMessages();
-                      }}
+                      value={form.name}
+                      onChange={(event) =>
+                        updateField(
+                          "name",
+                          event.target.value,
+                        )
+                      }
                       className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
                     />
                   </div>
@@ -321,11 +373,13 @@ export function RegisterScreen({
                       placeholder="Apellido"
                       autoComplete="family-name"
                       required
-                      value={lastName}
-                      onChange={(event) => {
-                        setLastName(event.target.value);
-                        clearMessages();
-                      }}
+                      value={form.lastName}
+                      onChange={(event) =>
+                        updateField(
+                          "lastName",
+                          event.target.value,
+                        )
+                      }
                       className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
                     />
                   </div>
@@ -471,14 +525,13 @@ export function RegisterScreen({
                       autoComplete="new-password"
                       minLength={MIN_PASSWORD_LENGTH}
                       required
-                      value={confirmPassword}
-                      onChange={(event) => {
-                        setConfirmPassword(
+                      value={form.confirmPassword}
+                      onChange={(event) =>
+                        updateField(
+                          "confirmPassword",
                           event.target.value,
-                        );
-
-                        clearMessages();
-                      }}
+                        )
+                      }
                       className="min-w-0 flex-1 bg-transparent text-[10px] text-sage outline-none placeholder:text-sage/40"
                     />
 
@@ -654,7 +707,11 @@ export function RegisterScreen({
               {/* Botón dentro del flujo normal */}
               <button
                 type="submit"
-                disabled={isSubmitting}
+                // Bloqueado también tras el éxito: durante la espera previa al
+                // login no debe poder reenviarse el formulario.
+                disabled={
+                  isSubmitting || Boolean(successMessage)
+                }
                 aria-busy={isSubmitting}
                 className="mx-auto mt-5 flex h-[50px] w-[190px] items-center justify-center rounded-full bg-rose px-6 text-[13px] font-bold text-white shadow-[0_10px_22px_rgba(235,181,178,0.28)] transition hover:-translate-y-0.5 hover:bg-leaf disabled:cursor-not-allowed disabled:opacity-70"
               >
