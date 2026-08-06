@@ -8,8 +8,40 @@ import {
 
 import { useState, type FormEvent } from "react";
 
+import { saveSession } from "@/core/auth/authSession";
+
+import type { LoginFormState } from "./domain/auth.types";
+
+import {
+  buildLoginRequest,
+  getLoginErrorMessage,
+  login,
+  toAuthSession,
+} from "./services/auth.api";
+
+/** Comprobación básica de formato: `algo@algo.algo` sin espacios. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const EMPTY_FORM: LoginFormState = {
+  email: "",
+  password: "",
+};
+
+/** Valida el formulario antes de enviar y devuelve el primer error encontrado. */
+function getFormError(form: LoginFormState): string | null {
+  if (!form.email.trim()) return "Ingresa tu correo electrónico.";
+  if (!EMAIL_PATTERN.test(form.email.trim())) {
+    return "Ingresa un correo electrónico válido.";
+  }
+
+  if (!form.password) return "Ingresa tu contraseña.";
+
+  return null;
+}
+
 interface LoginScreenProps {
   onBack: () => void;
+  /** Se invoca solo cuando el backend devolvió un token válido. */
   onSubmit: () => void;
   onRegister: () => void;
 }
@@ -20,10 +52,65 @@ export function LoginScreen({
   onRegister,
 }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState<LoginFormState>(EMPTY_FORM);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function updateField<K extends keyof LoginFormState>(
+    field: K,
+    value: LoginFormState[K],
+  ) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setFormError(null);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit();
+
+    // Corta el doble submit (doble clic o Enter repetido).
+    if (isSubmitting) {
+      return;
+    }
+
+    const validationError = getFormError(form);
+
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
+    setFormError(null);
+    setIsSubmitting(true);
+
+    try {
+      // Solo viajan las dos claves del contrato: email y password.
+      const response = await login(buildLoginRequest(form));
+      const session = toAuthSession(response);
+
+      // Un 200 sin token utilizable no abre sesión: se trata como fallo.
+      if (session === null) {
+        setFormError(getLoginErrorMessage(null));
+        return;
+      }
+
+      saveSession(session);
+
+      // La contraseña se descarta del estado en cuanto deja de hacer falta.
+      setForm(EMPTY_FORM);
+      setShowPassword(false);
+
+      onSubmit();
+    } catch (cause) {
+      // Se registra el tipo de fallo, nunca el cuerpo de la petición ni el token.
+      console.error(
+        "No se pudo iniciar sesión:",
+        cause instanceof Error ? cause.name : "Error desconocido",
+      );
+
+      setFormError(getLoginErrorMessage(cause));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -47,7 +134,7 @@ export function LoginScreen({
           <div className="h-10 w-10" aria-hidden="true" />
         </header>
 
-      
+
         <section className="relative -mt-7 flex flex-1 flex-col rounded-t-[34px] bg-white px-6 pb-7 shadow-[0_-10px_28px_rgba(57,64,50,0.06)]">
           <div className="flex flex-1 items-center">
             <div className="mx-auto w-full max-w-[326px]">
@@ -66,7 +153,7 @@ export function LoginScreen({
                 {/* Correo */}
                 <label className="block">
                   <span className="mb-2 ml-2 block text-[11px] font-bold text-sage">
-                    Correo electrónico o teléfono
+                    Correo electrónico
                   </span>
 
                   <div className="flex h-[58px] items-center gap-3 rounded-full bg-cream px-5 transition duration-200 focus-within:shadow-[0_0_0_4px_rgba(163,177,83,0.15)]">
@@ -77,9 +164,14 @@ export function LoginScreen({
                     />
 
                     <input
-                      type="text"
-                      placeholder="Ingresa tu correo o teléfono"
+                      type="email"
+                      placeholder="Ingresa tu correo"
+                      autoComplete="email"
                       required
+                      value={form.email}
+                      onChange={(event) =>
+                        updateField("email", event.target.value)
+                      }
                       className="min-w-0 flex-1 bg-transparent text-[13px] text-sage outline-none placeholder:text-sage/35"
                     />
                   </div>
@@ -101,7 +193,12 @@ export function LoginScreen({
                     <input
                       type={showPassword ? "text" : "password"}
                       placeholder="Ingresa tu contraseña"
+                      autoComplete="current-password"
                       required
+                      value={form.password}
+                      onChange={(event) =>
+                        updateField("password", event.target.value)
+                      }
                       className="min-w-0 flex-1 bg-transparent text-[13px] text-sage outline-none placeholder:text-sage/35"
                     />
 
@@ -133,11 +230,22 @@ export function LoginScreen({
                   ¿Olvidaste tu contraseña?
                 </button>
 
+                {formError && (
+                  <p
+                    role="alert"
+                    className="mt-4 text-center text-[11px] leading-[1.4] text-rose"
+                  >
+                    {formError}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  className="mx-auto mt-10 flex h-[54px] w-[190px] items-center justify-center rounded-full bg-sage px-6 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(108,118,93,0.24)] transition duration-200 hover:-translate-y-0.5 hover:bg-leaf"
+                  disabled={isSubmitting}
+                  aria-busy={isSubmitting}
+                  className="mx-auto mt-10 flex h-[54px] w-[190px] items-center justify-center rounded-full bg-sage px-6 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(108,118,93,0.24)] transition duration-200 hover:-translate-y-0.5 hover:bg-leaf disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:bg-sage"
                 >
-                  Iniciar sesión
+                  {isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"}
                 </button>
               </form>
             </div>
