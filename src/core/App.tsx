@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { clearSession } from "@/core/auth/authSession";
 import { HomeScreen } from "@/features/home";
 import {
   mockProfile,
@@ -77,7 +78,12 @@ function App() {
       onNavigate={(destination) =>
         console.info("navigate:", destination)
       }
-      onLogout={() => setScreen("welcome")}
+      // Solo limpia el almacenamiento local: `POST /api/v1/auth/logout`
+      // todavía no se integra.
+      onLogout={() => {
+        clearSession();
+        setScreen("welcome");
+      }}
     />
   );
 }
