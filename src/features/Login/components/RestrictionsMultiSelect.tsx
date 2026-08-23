@@ -39,11 +39,22 @@ export interface RestrictionsMultiSelectProps {
   label: string;
   restrictions: Restriction[];
   status: "loading" | "ready" | "error";
-  /** Mensaje amigable ya traducido; nunca un error técnico. */
-  errorMessage: string | null;
+  /**
+   * Mensaje amigable ya traducido; nunca un error técnico.
+   *
+   * Opcional: la pantalla que lo usa puede decidir no detallar el fallo, en
+   * cuyo caso el control simplemente queda deshabilitado sin texto de error.
+   */
+  errorMessage?: string | null;
   selectedIds: string[];
   onChange: (selectedIds: string[]) => void;
-  onRetry: () => void;
+  /**
+   * Reintenta la carga.
+   *
+   * Opcional: si no se pasa, no se ofrece el botón "Reintentar" en vez de
+   * mostrar uno que no haría nada.
+   */
+  onRetry?: () => void;
 }
 
 /** Texto mostrado dentro de la píldora según la selección actual. */
@@ -311,14 +322,20 @@ export function RestrictionsMultiSelect({
           role="alert"
           className="mt-1.5 ml-2 text-[9.5px] leading-[1.45] text-rose"
         >
-          {errorMessage}{" "}
-          <button
-            type="button"
-            onClick={onRetry}
-            className="font-bold text-sage underline transition hover:text-leaf"
-          >
-            Reintentar
-          </button>
+          {errorMessage}
+
+          {onRetry && (
+            <>
+              {" "}
+              <button
+                type="button"
+                onClick={onRetry}
+                className="font-bold text-sage underline transition hover:text-leaf"
+              >
+                Reintentar
+              </button>
+            </>
+          )}
         </p>
       )}
     </div>

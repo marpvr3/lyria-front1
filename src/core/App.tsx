@@ -18,6 +18,8 @@ import { CommunityPostDetailScreen } from "../features/Comunidad/CommunityPostDe
 
 import { CreateCommunityPostScreen } from "../features/Comunidad/CreateCommunityPostScreen";
 
+import { EmailVerificationScreen } from "../features/Login/EmailVerificationScreen";
+
 import { LoginScreen } from "../features/Login/LoginScreen";
 
 import { RegisterScreen } from "../features/Login/RegisterScreen";
@@ -31,6 +33,7 @@ type Screen =
   | "welcome"
   | "login"
   | "register"
+  | "verify-email"
   | "home"
   | "community"
   | "community-group"
@@ -48,9 +51,32 @@ function App() {
     "sin-tacc",
   );
 
+  /**
+   * Id de la publicación abierta.
+   *
+   * Se guarda al abrir el detalle, pero todavía nadie lo lee:
+   * `CommunityPostDetailScreen` aún es estático y no acepta `postId`. Por eso
+   * se omite el valor del destructuring —declararlo rompería `noUnusedLocals`—
+   * y se conserva solo el setter, listo para cuando la pantalla lo reciba.
+   */
   const [
-    selectedPostId,
+    ,
     setSelectedPostId,
+  ] = useState<string>(
+    "",
+  );
+
+  /**
+   * Correo pendiente de verificar.
+   *
+   * Vive solo en memoria y solo entre el registro y la verificación: la
+   * navegación ya vive en este componente, así que no hace falta persistirlo
+   * —una recarga vuelve al splash de todas formas—. Nunca se guarda la
+   * contraseña.
+   */
+  const [
+    pendingVerificationEmail,
+    setPendingVerificationEmail,
   ] = useState<string>(
     "",
   );
@@ -132,6 +158,33 @@ function App() {
         "support",
       );
     }
+  }
+
+  /**
+   * Registro exitoso (201): la cuenta queda sin verificar, así que el paso
+   * siguiente es la verificación del correo y no el login.
+   */
+  function handleRegistered(
+    email: string,
+  ) {
+    setPendingVerificationEmail(
+      email,
+    );
+
+    setScreen(
+      "verify-email",
+    );
+  }
+
+  /** Vuelve al login y descarta el correo pendiente: ya cumplió su función. */
+  function goToLogin() {
+    setPendingVerificationEmail(
+      "",
+    );
+
+    setScreen(
+      "login",
+    );
   }
 
   function handleOpenGroup(
@@ -229,6 +282,28 @@ function App() {
           setScreen(
             "login",
           )
+        }
+        onRegistered={
+          handleRegistered
+        }
+      />
+    );
+  }
+
+  if (
+    screen ===
+    "verify-email"
+  ) {
+    return (
+      <EmailVerificationScreen
+        email={
+          pendingVerificationEmail
+        }
+        onVerified={
+          goToLogin
+        }
+        onBack={
+          goToLogin
         }
       />
     );
