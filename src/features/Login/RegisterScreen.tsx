@@ -1,6 +1,6 @@
 import {
-  CalendarDays,
   Camera,
+  Check,
   ChevronLeft,
   Eye,
   EyeOff,
@@ -35,16 +35,10 @@ import {
 
 const MIN_PASSWORD_LENGTH = 6;
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+const REDIRECT_TO_LOGIN_DELAY_MS = 2500;
 
-/**
- * Tiempo que se deja visible "Cuenta creada correctamente." antes de llevar a
- * la persona usuaria al login. Suficiente para leerlo sin sentir que la
- * pantalla se queda congelada.
- */
-const REDIRECT_TO_LOGIN_DELAY_MS = 2_500;
-
-/** Comprobación básica de formato: `algo@algo.algo` sin espacios. */
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const EMPTY_FORM: RegisterUserFormState = {
   name: "",
@@ -57,36 +51,91 @@ const EMPTY_FORM: RegisterUserFormState = {
   acceptsTerms: false,
 };
 
-/**
- * Valida el formulario antes de enviar y devuelve el primer error encontrado.
- *
- * Las restricciones alimentarias y la foto de perfil son opcionales, por eso no
- * aparecen aquí.
- */
-function getFormError(form: RegisterUserFormState): string | null {
-  if (!form.name.trim()) return "Ingresa tu nombre.";
-  if (!form.lastName.trim()) return "Ingresa tu apellido.";
+interface FormErrors {
+  name?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  password?: string;
+  confirmPassword?: string;
+  terms?: string;
+}
 
-  if (!form.email.trim()) return "Ingresa tu correo electrónico.";
-  if (!EMAIL_PATTERN.test(form.email.trim())) {
-    return "Ingresa un correo electrónico válido.";
+function validateForm(
+  form: RegisterUserFormState,
+): FormErrors {
+  const errors: FormErrors = {};
+
+  if (!form.name.trim()) {
+    errors.name =
+      "Ingresa tu nombre.";
   }
 
-  if (!form.phone.trim()) return "Ingresa tu número de teléfono.";
-
-  if (!form.password) return "Ingresa tu contraseña.";
-  if (!form.confirmPassword) return "Repite tu contraseña.";
-  if (form.password !== form.confirmPassword) {
-    return "Las contraseñas no coinciden.";
+  if (!form.lastName.trim()) {
+    errors.lastName =
+      "Ingresa tu apellido.";
   }
 
-  if (!form.birthDate) return "Ingresa tu fecha de nacimiento.";
-
-  if (!form.acceptsTerms) {
-    return "Debes aceptar los términos de uso y la política de privacidad.";
+  if (!form.email.trim()) {
+    errors.email =
+      "Ingresa tu correo electrónico.";
+  } else if (
+    !EMAIL_PATTERN.test(
+      form.email.trim(),
+    )
+  ) {
+    errors.email =
+      "Ingresa un correo electrónico válido.";
   }
 
-  return null;
+  if (form.phone.trim()) {
+    const onlyNumbers =
+      form.phone.replace(
+        /\D/g,
+        "",
+      );
+
+    if (
+      onlyNumbers.length < 7
+    ) {
+      errors.phone =
+        "Ingresa un número válido.";
+    }
+  }
+
+  if (!form.password) {
+    errors.password =
+      "Ingresa una contraseña.";
+  } else if (
+    form.password.length <
+    MIN_PASSWORD_LENGTH
+  ) {
+    errors.password =
+      `Debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`;
+  }
+
+  if (
+    !form.confirmPassword
+  ) {
+    errors.confirmPassword =
+      "Confirma tu contraseña.";
+  } else if (
+    form.password &&
+    form.password !==
+      form.confirmPassword
+  ) {
+    errors.confirmPassword =
+      "Las contraseñas no coinciden.";
+  }
+
+  if (
+    !form.acceptsTerms
+  ) {
+    errors.terms =
+      "Debes aceptar los términos y la política de privacidad.";
+  }
+
+  return errors;
 }
 
 interface RegisterScreenProps {
@@ -98,78 +147,133 @@ export function RegisterScreen({
   onBack,
   onLogin,
 }: RegisterScreenProps) {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
 
-  const [selectedPhoto, setSelectedPhoto] =
-    useState<File | null>(null);
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
 
-  const [photoPreview, setPhotoPreview] = useState("");
+  const [
+    selectedPhoto,
+    setSelectedPhoto,
+  ] = useState<File | null>(
+    null,
+  );
 
-  const [form, setForm] =
-    useState<RegisterUserFormState>(EMPTY_FORM);
+  const [
+    photoPreview,
+    setPhotoPreview,
+  ] = useState("");
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [
+    form,
+    setForm,
+  ] =
+    useState<RegisterUserFormState>(
+      EMPTY_FORM,
+    );
 
-  const [formError, setFormError] =
-    useState<string | null>(null);
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
 
-  const [successMessage, setSuccessMessage] =
-    useState<string | null>(null);
+  const [
+    errors,
+    setErrors,
+  ] =
+    useState<FormErrors>({});
+
+  const [
+    serverError,
+    setServerError,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    successMessage,
+    setSuccessMessage,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    hasSubmitted,
+    setHasSubmitted,
+  ] = useState(false);
 
   const {
     restrictions,
     status,
-    error,
-    reload,
-  } = useActiveRestrictions();
+  } =
+    useActiveRestrictions();
 
   const [
     selectedRestrictionIds,
     setSelectedRestrictionIds,
-  ] = useState<string[]>([]);
+  ] = useState<
+    string[]
+  >([]);
 
   const restrictionsRef =
-    useRef<RestrictionsMultiSelectHandle>(null);
+    useRef<RestrictionsMultiSelectHandle>(
+      null,
+    );
 
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef =
+    useRef<HTMLInputElement>(
+      null,
+    );
 
-  // Referencia siempre apuntando al último `onLogin`: evita que el temporizador
-  // se reinicie si el padre vuelve a renderizar con otra instancia del callback.
-  const onLoginRef = useRef(onLogin);
+  const onLoginRef =
+    useRef(onLogin);
 
   useEffect(() => {
-    onLoginRef.current = onLogin;
-  });
+    onLoginRef.current =
+      onLogin;
+  }, [onLogin]);
 
   useEffect(() => {
     return () => {
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
+      if (
+        photoPreview
+      ) {
+        URL.revokeObjectURL(
+          photoPreview,
+        );
       }
     };
   }, [photoPreview]);
 
-  /**
-   * Tras un registro exitoso, deja leer el mensaje y lleva al login.
-   *
-   * No hay inicio de sesión ni token de por medio: solo un cambio de pantalla.
-   * El `clearTimeout` del cleanup evita que el callback se dispare si el
-   * componente se desmonta antes (por ejemplo si se pulsa "Volver").
-   */
   useEffect(() => {
-    if (!successMessage) return;
+    if (
+      !successMessage
+    ) {
+      return;
+    }
 
-    const timer = window.setTimeout(() => {
-      onLoginRef.current();
-    }, REDIRECT_TO_LOGIN_DELAY_MS);
+    const timer =
+      window.setTimeout(
+        () => {
+          onLoginRef.current();
+        },
+        REDIRECT_TO_LOGIN_DELAY_MS,
+      );
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(
+        timer,
+      );
+    };
   }, [successMessage]);
 
-  function clearMessages() {
-    setFormError(null);
+  function clearGlobalMessages() {
+    setServerError(null);
     setSuccessMessage(null);
   }
 
@@ -179,55 +283,110 @@ export function RegisterScreen({
     field: K,
     value: RegisterUserFormState[K],
   ) {
-    setForm((current) => ({
-      ...current,
+    const updatedForm = {
+      ...form,
       [field]: value,
-    }));
+    };
 
-    clearMessages();
+    setForm(
+      updatedForm,
+    );
+
+    clearGlobalMessages();
+
+    if (
+      !hasSubmitted
+    ) {
+      return;
+    }
+
+    setErrors(
+      validateForm(
+        updatedForm,
+      ),
+    );
   }
 
   function handlePhotoChange(
     event: ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    if (!file.type.startsWith("image/")) {
-      setFormError("Selecciona una imagen válida.");
-      event.target.value = "";
+    if (
+      !file.type.startsWith(
+        "image/",
+      )
+    ) {
+      setServerError(
+        "Selecciona una imagen válida.",
+      );
+
+      event.target.value =
+        "";
+
       return;
     }
 
-    if (file.size > MAX_PHOTO_SIZE) {
-      setFormError("La imagen no puede pesar más de 5 MB.");
-      event.target.value = "";
+    if (
+      file.size >
+      MAX_PHOTO_SIZE
+    ) {
+      setServerError(
+        "La imagen no puede pesar más de 5 MB.",
+      );
+
+      event.target.value =
+        "";
+
       return;
     }
 
-    if (photoPreview) {
-      URL.revokeObjectURL(photoPreview);
+    if (
+      photoPreview
+    ) {
+      URL.revokeObjectURL(
+        photoPreview,
+      );
     }
 
-    setSelectedPhoto(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    setSelectedPhoto(
+      file,
+    );
 
-    clearMessages();
+    setPhotoPreview(
+      URL.createObjectURL(
+        file,
+      ),
+    );
+
+    clearGlobalMessages();
   }
 
   function removePhoto() {
-    if (photoPreview) {
-      URL.revokeObjectURL(photoPreview);
+    if (
+      photoPreview
+    ) {
+      URL.revokeObjectURL(
+        photoPreview,
+      );
     }
 
-    setSelectedPhoto(null);
+    setSelectedPhoto(
+      null,
+    );
+
     setPhotoPreview("");
 
-    if (photoInputRef.current) {
-      photoInputRef.current.value = "";
+    if (
+      photoInputRef.current
+    ) {
+      photoInputRef.current.value =
+        "";
     }
   }
 
@@ -238,26 +397,50 @@ export function RegisterScreen({
 
     restrictionsRef.current?.close();
 
-    // Corta el doble submit (doble clic o Enter repetido).
-    if (isSubmitting) {
+    if (
+      isSubmitting
+    ) {
       return;
     }
 
-    const validationError = getFormError(form);
+    setHasSubmitted(
+      true,
+    );
 
-    if (validationError) {
-      setFormError(validationError);
-      setSuccessMessage(null);
+    const validationErrors =
+      validateForm(
+        form,
+      );
+
+    setErrors(
+      validationErrors,
+    );
+
+    if (
+      Object.keys(
+        validationErrors,
+      ).length > 0
+    ) {
+      setServerError(
+        null,
+      );
+
+      setSuccessMessage(
+        null,
+      );
+
       return;
     }
 
-    setFormError(null);
+    setErrors({});
+    setServerError(null);
     setSuccessMessage(null);
-    setIsSubmitting(true);
+
+    setIsSubmitting(
+      true,
+    );
 
     try {
-      // Solo viajan las ocho claves del contrato: ni confirmPassword, ni los
-      // términos, ni el archivo de imagen, ni roleId (lo asigna el backend).
       await registerUser(
         buildMobileRegistrationRequest(
           form,
@@ -266,14 +449,29 @@ export function RegisterScreen({
       );
 
       setSuccessMessage(
-        "Cuenta creada correctamente.",
+        "¡Cuenta creada correctamente!",
       );
 
-      // Sin sesión automática, sin token y sin navegar: solo se limpia.
-      setForm(EMPTY_FORM);
-      setSelectedRestrictionIds([]);
-      setShowPassword(false);
-      setShowConfirmPassword(false);
+      setForm(
+        EMPTY_FORM,
+      );
+
+      setSelectedRestrictionIds(
+        [],
+      );
+
+      setShowPassword(
+        false,
+      );
+
+      setShowConfirmPassword(
+        false,
+      );
+
+      setErrors({});
+      setHasSubmitted(
+        false,
+      );
 
       removePhoto();
     } catch (cause) {
@@ -282,34 +480,56 @@ export function RegisterScreen({
         cause,
       );
 
-      setFormError(
-        getRegisterErrorMessage(cause),
+      setServerError(
+        getRegisterErrorMessage(
+          cause,
+        ),
       );
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(
+        false,
+      );
     }
   }
 
+  const passwordHasMinimumLength =
+    form.password.length >=
+    MIN_PASSWORD_LENGTH;
+
+  const passwordsMatch =
+    Boolean(
+      form.confirmPassword,
+    ) &&
+    form.password ===
+      form.confirmPassword;
+
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-[#ECEEE8] sm:px-5 sm:py-6">
+    <main className="flex min-h-screen w-full items-center justify-center bg-[#ECEEE8] antialiased [-webkit-font-smoothing:antialiased] [text-rendering:optimizeLegibility] sm:px-5 sm:py-6">
       <section className="relative flex h-screen min-h-0 w-full max-w-[390px] flex-col overflow-hidden bg-cream sm:h-[844px] sm:max-h-[844px] sm:rounded-[38px] sm:shadow-[0_24px_60px_rgba(57,64,50,0.14)]">
-        {/* Encabezado */}
-        <header className="grid h-[150px] shrink-0 grid-cols-[40px_1fr_40px] items-center bg-rose px-5 pb-3">
+        {/* HEADER */}
+
+        <header className="grid h-[170px] shrink-0 grid-cols-[40px_1fr_40px] items-center bg-rose px-5 pb-2">
           <button
             type="button"
-            onClick={onBack}
+            onClick={
+              onBack
+            }
             aria-label="Volver a la bienvenida"
             className="flex h-10 w-10 items-center justify-start text-white transition-transform duration-200 hover:-translate-x-0.5"
           >
             <ChevronLeft
-              size={22}
-              strokeWidth={2.3}
+              size={23}
+              strokeWidth={
+                2
+              }
             />
           </button>
 
-          <h1 className="whitespace-nowrap text-center text-[25px] font-extrabold tracking-[-0.035em] text-white">
-            Crear una cuenta
-          </h1>
+          <div className="text-center">
+            <h1 className="whitespace-nowrap text-[27px] font-extrabold tracking-[-0.035em] text-white">
+              Crear una cuenta
+            </h1>
+          </div>
 
           <div
             className="h-10 w-10"
@@ -317,25 +537,41 @@ export function RegisterScreen({
           />
         </header>
 
-        {/* Tarjeta blanca */}
-        <section className="relative -mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[34px] bg-white shadow-[0_-10px_28px_rgba(57,64,50,0.06)]">
-          {/* Scroll únicamente dentro de la tarjeta */}
-          <div className="h-full min-h-0 overflow-y-auto overscroll-contain px-6 pb-8 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <form
-              onSubmit={handleSubmit}
-              className="mx-auto w-full max-w-[338px]"
-            >
-              {/* Nombre y apellido */}
+        {/* CONTENIDO */}
+
+        <section className="relative -mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_-10px_28px_rgba(57,64,50,0.06)]">
+          <form
+            onSubmit={
+              handleSubmit
+            }
+            noValidate
+            className="mx-auto flex h-full w-full max-w-[338px] flex-col px-0 pb-5 pt-5"
+          >
+            <div className="space-y-3">
+              {/* NOMBRE / APELLIDO */}
+
               <div className="grid grid-cols-2 gap-3">
                 <label className="min-w-0">
-                  <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
-                    Nombre
+                  <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                    Nombre{" "}
+                    <span className="text-rose">
+                      *
+                    </span>
                   </span>
 
-                  <div className="flex h-[52px] min-w-0 items-center gap-2.5 rounded-full bg-cream px-4 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                  <div
+                    className={`flex h-[45px] min-w-0 items-center gap-2.5 rounded-full bg-cream px-3.5 transition ${
+                      hasSubmitted &&
+                      errors.name
+                        ? "shadow-[0_0_0_1.5px_rgba(235,181,178,0.9)]"
+                        : "focus-within:shadow-[0_0_0_2px_rgba(163,177,83,0.16)]"
+                    }`}
+                  >
                     <UserRound
                       size={17}
-                      strokeWidth={2}
+                      strokeWidth={
+                        1.8
+                      }
                       className="shrink-0 text-leaf"
                     />
 
@@ -343,28 +579,54 @@ export function RegisterScreen({
                       type="text"
                       placeholder="Nombre"
                       autoComplete="given-name"
-                      required
-                      value={form.name}
-                      onChange={(event) =>
+                      value={
+                        form.name
+                      }
+                      onChange={(
+                        event,
+                      ) =>
                         updateField(
                           "name",
-                          event.target.value,
+                          event
+                            .target
+                            .value,
                         )
                       }
-                      className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
+                      className="min-w-0 flex-1 bg-transparent text-[12px] font-normal text-sage outline-none placeholder:text-sage/45"
                     />
                   </div>
+
+                  {hasSubmitted &&
+                    errors.name && (
+                      <p className="ml-2 mt-1 text-[8.5px] font-medium text-rose">
+                        {
+                          errors.name
+                        }
+                      </p>
+                    )}
                 </label>
 
                 <label className="min-w-0">
-                  <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
-                    Apellido
+                  <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                    Apellido{" "}
+                    <span className="text-rose">
+                      *
+                    </span>
                   </span>
 
-                  <div className="flex h-[52px] min-w-0 items-center gap-2.5 rounded-full bg-cream px-4 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                  <div
+                    className={`flex h-[45px] min-w-0 items-center gap-2.5 rounded-full bg-cream px-3.5 transition ${
+                      hasSubmitted &&
+                      errors.lastName
+                        ? "shadow-[0_0_0_1.5px_rgba(235,181,178,0.9)]"
+                        : "focus-within:shadow-[0_0_0_2px_rgba(163,177,83,0.16)]"
+                    }`}
+                  >
                     <UserRound
                       size={17}
-                      strokeWidth={2}
+                      strokeWidth={
+                        1.8
+                      }
                       className="shrink-0 text-leaf"
                     />
 
@@ -372,264 +634,437 @@ export function RegisterScreen({
                       type="text"
                       placeholder="Apellido"
                       autoComplete="family-name"
-                      required
-                      value={form.lastName}
-                      onChange={(event) =>
+                      value={
+                        form.lastName
+                      }
+                      onChange={(
+                        event,
+                      ) =>
                         updateField(
                           "lastName",
-                          event.target.value,
+                          event
+                            .target
+                            .value,
                         )
                       }
-                      className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
+                      className="min-w-0 flex-1 bg-transparent text-[12px] font-normal text-sage outline-none placeholder:text-sage/45"
                     />
                   </div>
+
+                  {hasSubmitted &&
+                    errors.lastName && (
+                      <p className="ml-2 mt-1 text-[8.5px] font-medium text-rose">
+                        {
+                          errors.lastName
+                        }
+                      </p>
+                    )}
                 </label>
               </div>
 
-              {/* Correo */}
-              <label className="mt-3 block">
-                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
-                  Correo electrónico
+              {/* EMAIL */}
+
+              <label className="block">
+                <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                  Correo electrónico{" "}
+                  <span className="text-rose">
+                    *
+                  </span>
                 </span>
 
-                <div className="flex h-[52px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                <div
+                  className={`flex h-[45px] items-center gap-3 rounded-full bg-cream px-4 transition ${
+                    hasSubmitted &&
+                    errors.email
+                      ? "shadow-[0_0_0_1.5px_rgba(235,181,178,0.9)]"
+                      : "focus-within:shadow-[0_0_0_2px_rgba(163,177,83,0.16)]"
+                  }`}
+                >
                   <Mail
                     size={17}
-                    strokeWidth={2}
+                    strokeWidth={
+                      1.8
+                    }
                     className="shrink-0 text-leaf"
                   />
 
                   <input
                     type="email"
-                    placeholder="Ingresa tu correo"
+                    placeholder="ejemplo@correo.com"
                     autoComplete="email"
-                    required
-                    value={form.email}
-                    onChange={(event) =>
+                    value={
+                      form.email
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       updateField(
                         "email",
-                        event.target.value,
+                        event
+                          .target
+                          .value,
                       )
                     }
-                    className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
+                    className="min-w-0 flex-1 bg-transparent text-[12px] font-normal text-sage outline-none placeholder:text-sage/45"
                   />
                 </div>
+
+                {hasSubmitted &&
+                  errors.email && (
+                    <p className="ml-2 mt-1 text-[8.5px] font-medium text-rose">
+                      {
+                        errors.email
+                      }
+                    </p>
+                  )}
               </label>
 
-              {/* Teléfono */}
-              <label className="mt-3 block">
-                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
+              {/* TELÉFONO */}
+
+              <label className="block">
+                <span className="mb-1.5 ml-2 flex items-center gap-1 text-[10.5px] font-bold text-sage">
                   Número de teléfono
+
+                  <span className="font-normal text-sage/45">
+                    opcional
+                  </span>
                 </span>
 
-                <div className="flex h-[52px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
+                <div
+                  className={`flex h-[45px] items-center gap-3 rounded-full bg-cream px-4 transition ${
+                    hasSubmitted &&
+                    errors.phone
+                      ? "shadow-[0_0_0_1.5px_rgba(235,181,178,0.9)]"
+                      : "focus-within:shadow-[0_0_0_2px_rgba(163,177,83,0.16)]"
+                  }`}
+                >
                   <Phone
                     size={17}
-                    strokeWidth={2}
+                    strokeWidth={
+                      1.8
+                    }
                     className="shrink-0 text-leaf"
                   />
 
                   <input
                     type="tel"
-                    placeholder="Ingresa tu número"
+                    placeholder="Ej: +54 11 1234 5678"
                     autoComplete="tel"
-                    required
-                    value={form.phone}
-                    onChange={(event) =>
+                    value={
+                      form.phone
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       updateField(
                         "phone",
-                        event.target.value,
+                        event
+                          .target
+                          .value,
                       )
                     }
-                    className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none placeholder:text-sage/40"
+                    className="min-w-0 flex-1 bg-transparent text-[12px] font-normal text-sage outline-none placeholder:text-sage/45"
                   />
                 </div>
+
+                {hasSubmitted &&
+                  errors.phone && (
+                    <p className="ml-2 mt-1 text-[8.5px] font-medium text-rose">
+                      {
+                        errors.phone
+                      }
+                    </p>
+                  )}
               </label>
 
-              {/* Contraseñas */}
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <label className="min-w-0">
-                  <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
-                    Contraseña
-                  </span>
+              {/* CONTRASEÑAS */}
 
-                  <div className="flex h-[52px] min-w-0 items-center gap-1 rounded-full bg-cream px-3.5 transition focus-within:shadow-[0_0_0_3px_rgba(235,181,178,0.17)]">
-                    <LockKeyhole
-                      size={16}
-                      strokeWidth={2}
-                      className="shrink-0 text-rose"
-                    />
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* CONTRASEÑA */}
 
-                    <input
-                      type={
-                        showPassword
-                          ? "text"
-                          : "password"
-                      }
-                      placeholder="Contraseña"
-                      autoComplete="new-password"
-                      minLength={MIN_PASSWORD_LENGTH}
-                      required
-                      value={form.password}
-                      onChange={(event) =>
-                        updateField(
-                          "password",
-                          event.target.value,
-                        )
-                      }
-                      className="min-w-0 flex-1 bg-transparent text-[10px] text-sage outline-none placeholder:text-sage/40"
-                    />
+                  <label className="min-w-0">
+                    <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                      Contraseña{" "}
+                      <span className="text-rose">
+                        *
+                      </span>
+                    </span>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowPassword(
-                          (current) => !current,
-                        )
-                      }
-                      aria-label={
-                        showPassword
-                          ? "Ocultar contraseña"
-                          : "Mostrar contraseña"
-                      }
-                      className="grid h-7 w-6 shrink-0 place-items-center text-sage/55 transition hover:text-sage"
+                    <div
+                      className={`flex h-[45px] min-w-0 items-center gap-2 rounded-full bg-cream px-3 transition ${
+                        hasSubmitted &&
+                        errors.password
+                          ? "shadow-[0_0_0_1.5px_rgba(235,181,178,0.9)]"
+                          : "focus-within:shadow-[0_0_0_2px_rgba(235,181,178,0.18)]"
+                      }`}
                     >
-                      {showPassword ? (
-                        <EyeOff size={14} />
-                      ) : (
-                        <Eye size={14} />
-                      )}
-                    </button>
-                  </div>
-                </label>
+                      <LockKeyhole
+                        size={16}
+                        strokeWidth={
+                          1.8
+                        }
+                        className="shrink-0 text-rose"
+                      />
 
-                <label className="min-w-0">
-                  <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
-                    Repetir contraseña
-                  </span>
+                      <input
+                        type={
+                          showPassword
+                            ? "text"
+                            : "password"
+                        }
+                        placeholder="Contraseña"
+                        autoComplete="new-password"
+                        value={
+                          form.password
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          updateField(
+                            "password",
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        className="min-w-0 flex-1 bg-transparent text-[11.5px] font-normal text-sage outline-none placeholder:text-sage/45"
+                      />
 
-                  <div className="flex h-[52px] min-w-0 items-center gap-1 rounded-full bg-cream px-3.5 transition focus-within:shadow-[0_0_0_3px_rgba(235,181,178,0.17)]">
-                    <LockKeyhole
-                      size={16}
-                      strokeWidth={2}
-                      className="shrink-0 text-rose"
-                    />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPassword(
+                            (
+                              current,
+                            ) =>
+                              !current,
+                          )
+                        }
+                        aria-label={
+                          showPassword
+                            ? "Ocultar contraseña"
+                            : "Mostrar contraseña"
+                        }
+                        className="grid h-7 w-7 shrink-0 place-items-center text-sage/50 transition hover:text-sage"
+                      >
+                        {showPassword ? (
+                          <Eye
+                            size={
+                              16
+                            }
+                            strokeWidth={
+                              1.8
+                            }
+                          />
+                        ) : (
+                          <EyeOff
+                            size={
+                              16
+                            }
+                            strokeWidth={
+                              1.8
+                            }
+                          />
+                        )}
+                      </button>
+                    </div>
+                  </label>
 
-                    <input
-                      type={
-                        showConfirmPassword
-                          ? "text"
-                          : "password"
-                      }
-                      placeholder="Repetir"
-                      autoComplete="new-password"
-                      minLength={MIN_PASSWORD_LENGTH}
-                      required
-                      value={form.confirmPassword}
-                      onChange={(event) =>
-                        updateField(
-                          "confirmPassword",
-                          event.target.value,
-                        )
-                      }
-                      className="min-w-0 flex-1 bg-transparent text-[10px] text-sage outline-none placeholder:text-sage/40"
-                    />
+                  {/* CONFIRMAR */}
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(
-                          (current) => !current,
-                        )
-                      }
-                      aria-label={
-                        showConfirmPassword
-                          ? "Ocultar contraseña"
-                          : "Mostrar contraseña"
-                      }
-                      className="grid h-7 w-6 shrink-0 place-items-center text-sage/55 transition hover:text-sage"
+                  <label className="min-w-0">
+                    <span className="mb-1.5 ml-2 block text-[10.5px] font-bold text-sage">
+                      Confirmar{" "}
+                      <span className="text-rose">
+                        *
+                      </span>
+                    </span>
+
+                    <div
+                      className={`flex h-[45px] min-w-0 items-center gap-2 rounded-full bg-cream px-3 transition ${
+                        hasSubmitted &&
+                        errors.confirmPassword
+                          ? "shadow-[0_0_0_1.5px_rgba(235,181,178,0.9)]"
+                          : "focus-within:shadow-[0_0_0_2px_rgba(235,181,178,0.18)]"
+                      }`}
                     >
-                      {showConfirmPassword ? (
-                        <EyeOff size={14} />
-                      ) : (
-                        <Eye size={14} />
-                      )}
-                    </button>
-                  </div>
-                </label>
+                      <LockKeyhole
+                        size={16}
+                        strokeWidth={
+                          1.8
+                        }
+                        className="shrink-0 text-rose"
+                      />
+
+                      <input
+                        type={
+                          showConfirmPassword
+                            ? "text"
+                            : "password"
+                        }
+                        placeholder="Repetir"
+                        autoComplete="new-password"
+                        value={
+                          form.confirmPassword
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          updateField(
+                            "confirmPassword",
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        className="min-w-0 flex-1 bg-transparent text-[11.5px] font-normal text-sage outline-none placeholder:text-sage/45"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(
+                            (
+                              current,
+                            ) =>
+                              !current,
+                          )
+                        }
+                        aria-label={
+                          showConfirmPassword
+                            ? "Ocultar contraseña"
+                            : "Mostrar contraseña"
+                        }
+                        className="grid h-7 w-7 shrink-0 place-items-center text-sage/50 transition hover:text-sage"
+                      >
+                        {showConfirmPassword ? (
+                          <Eye
+                            size={
+                              16
+                            }
+                            strokeWidth={
+                              1.8
+                            }
+                          />
+                        ) : (
+                          <EyeOff
+                            size={
+                              16
+                            }
+                            strokeWidth={
+                              1.8
+                            }
+                          />
+                        )}
+                      </button>
+                    </div>
+                  </label>
+                </div>
+
+                {/* AYUDA SIMPLE */}
+
+                <div className="mt-2 flex min-h-[16px] items-center justify-between gap-2 px-2">
+                  <p
+                    className={`text-[9px] leading-none ${
+                      form.password &&
+                      passwordHasMinimumLength
+                        ? "font-medium text-leaf"
+                        : "text-sage/45"
+                    }`}
+                  >
+                    {form.password &&
+                    passwordHasMinimumLength ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Check
+                          size={
+                            10
+                          }
+                          strokeWidth={
+                            2.4
+                          }
+                        />
+
+                        Mínimo 6 caracteres, combina letras, números y símbolos.
+                      </span>
+                    ) : (
+                      <>
+                        Mínimo 6 caracteres, combina letras, números y símbolos.
+                      </>
+                    )}
+                  </p>
+
+                  {form.confirmPassword && (
+                    <span
+                      className={`shrink-0 text-[9px] font-semibold ${
+                        passwordsMatch
+                          ? "text-leaf"
+                          : "text-rose"
+                      }`}
+                    >
+                      {passwordsMatch
+                        ? "Coinciden"
+                        : "No coinciden"}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Fecha */}
-              <label className="mt-3 block">
-                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
-                  Fecha de nacimiento
-                </span>
+              {/* FOTO */}
 
-                <div className="flex h-[52px] items-center gap-3 rounded-full bg-cream px-5 transition focus-within:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]">
-                  <CalendarDays
-                    size={17}
-                    strokeWidth={2}
-                    className="shrink-0 text-leaf"
-                  />
-
-                  <input
-                    type="date"
-                    required
-                    value={form.birthDate}
-                    onChange={(event) =>
-                      updateField(
-                        "birthDate",
-                        event.target.value,
-                      )
-                    }
-                    className="min-w-0 flex-1 bg-transparent text-[12px] text-sage outline-none"
-                  />
-                </div>
-              </label>
-
-              {/* Foto */}
-              <div className="mt-3">
-                <span className="mb-1.5 ml-2 block text-[10px] font-bold text-sage">
+              <div>
+                <span className="mb-1.5 ml-2 flex items-center gap-1 text-[10.5px] font-bold text-sage">
                   Foto de perfil
 
-                  <span className="ml-1 font-normal text-sage/45">
+                  <span className="font-normal text-sage/45">
                     opcional
                   </span>
                 </span>
 
                 <input
-                  ref={photoInputRef}
+                  ref={
+                    photoInputRef
+                  }
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  onChange={handlePhotoChange}
+                  onChange={
+                    handlePhotoChange
+                  }
                   className="hidden"
                 />
 
                 {photoPreview ? (
-                  <div className="flex h-[54px] items-center gap-3 rounded-full bg-cream p-1.5 pr-4">
+                  <div className="flex h-[45px] items-center gap-2.5 rounded-full bg-cream p-1 pr-3">
                     <img
-                      src={photoPreview}
-                      alt="Vista previa de la foto"
-                      className="h-10 w-10 shrink-0 rounded-full object-cover"
+                      src={
+                        photoPreview
+                      }
+                      alt="Vista previa"
+                      className="h-9 w-9 shrink-0 rounded-full object-cover"
                     />
 
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[10px] font-semibold text-sage">
-                        {selectedPhoto?.name}
-                      </p>
-
-                      <p className="mt-0.5 text-[8.5px] text-sage/45">
-                        Imagen seleccionada
-                      </p>
-                    </div>
+                    <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-sage">
+                      {
+                        selectedPhoto?.name
+                      }
+                    </p>
 
                     <button
                       type="button"
-                      onClick={removePhoto}
+                      onClick={
+                        removePhoto
+                      }
                       aria-label="Eliminar foto"
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-sage shadow-[0_4px_10px_rgba(57,64,50,0.08)]"
+                      className="grid h-7 w-7 place-items-center rounded-full bg-white text-sage"
                     >
-                      <X size={14} />
+                      <X
+                        size={
+                          13
+                        }
+                        strokeWidth={
+                          1.9
+                        }
+                      />
                     </button>
                   </div>
                 ) : (
@@ -638,100 +1073,157 @@ export function RegisterScreen({
                     onClick={() =>
                       photoInputRef.current?.click()
                     }
-                    className="flex h-[52px] w-full items-center gap-3 rounded-full bg-cream px-5 text-left transition hover:shadow-[0_0_0_3px_rgba(163,177,83,0.14)]"
+                    className="flex h-[45px] w-full items-center gap-3 rounded-full bg-cream px-4 text-left"
                   >
                     <Camera
-                      size={17}
-                      strokeWidth={2}
-                      className="shrink-0 text-leaf"
+                      size={
+                        17
+                      }
+                      strokeWidth={
+                        1.8
+                      }
+                      className="text-leaf"
                     />
 
-                    <span className="text-[12px] text-sage/40">
-                      Cargar imagen
+                    <span className="text-[12px] font-normal text-sage/45">
+                      Agregar una foto
                     </span>
                   </button>
                 )}
               </div>
 
-              {/* Restricciones */}
+              {/* RESTRICCIONES */}
+
               <RestrictionsMultiSelect
-                ref={restrictionsRef}
-                label="Restricción alimenticia"
-                restrictions={restrictions}
-                status={status}
-                errorMessage={error}
-                selectedIds={selectedRestrictionIds}
-                onChange={setSelectedRestrictionIds}
-                onRetry={reload}
+                ref={
+                  restrictionsRef
+                }
+                label="Restricción alimenticia · opcional"
+                restrictions={
+                  restrictions
+                }
+                status={
+                  status
+                }
+                errorMessage={
+                  undefined
+                }
+                selectedIds={
+                  selectedRestrictionIds
+                }
+                onChange={
+                  setSelectedRestrictionIds
+                }
+                onRetry={
+                  undefined
+                }
               />
 
-              {/* Términos */}
-              <label className="mt-4 flex cursor-pointer items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  required
-                  checked={form.acceptsTerms}
-                  onChange={(event) =>
-                    updateField(
-                      "acceptsTerms",
-                      event.target.checked,
-                    )
-                  }
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#6c765d]"
-                />
+              {/* TÉRMINOS */}
 
-                <span className="text-[9px] leading-[1.45] text-sage/60">
-                  Acepto los términos de uso y la política de
-                  privacidad.
-                </span>
-              </label>
+              <div>
+                <label className="flex cursor-pointer items-start gap-2.5 px-1">
+                  <input
+                    type="checkbox"
+                    checked={
+                      form.acceptsTerms
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      updateField(
+                        "acceptsTerms",
+                        event
+                          .target
+                          .checked,
+                      )
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#6c765d]"
+                  />
 
-              {formError && (
-                <p
-                  role="alert"
-                  className="mt-3 text-center text-[10px] leading-[1.4] text-rose"
-                >
-                  {formError}
-                </p>
+                  <span className="text-[10.5px] leading-[1.45] text-sage/60">
+                    Acepto los{" "}
+                    <span className="font-semibold text-sage">
+                      términos de uso
+                    </span>{" "}
+                    y la{" "}
+                    <span className="font-semibold text-sage">
+                      política de privacidad
+                    </span>
+                    .{" "}
+                    <span className="font-bold text-rose">
+                      *
+                    </span>
+                  </span>
+                </label>
+
+                {hasSubmitted &&
+                  errors.terms && (
+                    <p className="ml-7 mt-1 text-[8.5px] font-medium text-rose">
+                      {
+                        errors.terms
+                      }
+                    </p>
+                  )}
+              </div>
+
+              {/* ERROR */}
+
+              {serverError && (
+                <div className="rounded-[13px] bg-[#FFF7F6] px-3 py-2 text-center">
+                  <p className="text-[9px] font-semibold leading-[1.4] text-rose">
+                    {
+                      serverError
+                    }
+                  </p>
+                </div>
               )}
+
+              {/* SUCCESS */}
 
               {successMessage && (
-                <p
-                  role="status"
-                  className="mt-3 text-center text-[10px] font-bold text-leaf"
-                >
-                  {successMessage}
-                </p>
+                <div className="rounded-[13px] bg-[#F4F6EA] px-3 py-2 text-center">
+                  <p className="text-[9px] font-bold leading-[1.4] text-leaf">
+                    {
+                      successMessage
+                    }
+                  </p>
+                </div>
               )}
+            </div>
 
-              {/* Botón dentro del flujo normal */}
+            {/* ABAJO */}
+
+            <div className="mt-auto pt-4">
               <button
                 type="submit"
-                // Bloqueado también tras el éxito: durante la espera previa al
-                // login no debe poder reenviarse el formulario.
                 disabled={
-                  isSubmitting || Boolean(successMessage)
+                  isSubmitting ||
+                  Boolean(
+                    successMessage,
+                  )
                 }
-                aria-busy={isSubmitting}
-                className="mx-auto mt-5 flex h-[50px] w-[190px] items-center justify-center rounded-full bg-rose px-6 text-[13px] font-bold text-white shadow-[0_10px_22px_rgba(235,181,178,0.28)] transition hover:-translate-y-0.5 hover:bg-leaf disabled:cursor-not-allowed disabled:opacity-70"
+                className="mx-auto flex h-[45px] w-[190px] items-center justify-center rounded-full bg-rose px-6 text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(235,181,178,0.28)] transition hover:-translate-y-0.5 hover:bg-leaf disabled:cursor-not-allowed disabled:opacity-65"
               >
                 {isSubmitting
                   ? "Registrando..."
                   : "Registrarse"}
               </button>
 
-              <p className="mt-3 text-center text-[9.5px] text-sage/60">
+              <p className="mt-3 text-center text-[10px] text-sage/60">
                 ¿Ya tienes una cuenta?{" "}
                 <button
                   type="button"
-                  onClick={onLogin}
+                  onClick={
+                    onLogin
+                  }
                   className="font-bold text-sage transition hover:text-leaf"
                 >
                   Inicia sesión
                 </button>
               </p>
-            </form>
-          </div>
+            </div>
+          </form>
         </section>
       </section>
     </main>
