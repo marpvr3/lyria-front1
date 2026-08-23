@@ -35,7 +35,6 @@ import {
 
 const MIN_PASSWORD_LENGTH = 6;
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-const REDIRECT_TO_LOGIN_DELAY_MS = 2500;
 
 const EMAIL_PATTERN =
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -141,11 +140,21 @@ function validateForm(
 interface RegisterScreenProps {
   onBack: () => void;
   onLogin: () => void;
+  /**
+   * Se invoca tras un 201 con el correo usado en el registro.
+   *
+   * La cuenta queda sin verificar: el siguiente paso es la pantalla de
+   * verificación, no el login. La contraseña no sale de esta pantalla.
+   */
+  onRegistered: (
+    email: string,
+  ) => void;
 }
 
 export function RegisterScreen({
   onBack,
   onLogin,
+  onRegistered,
 }: RegisterScreenProps) {
   const [
     showPassword,
@@ -196,13 +205,6 @@ export function RegisterScreen({
   >(null);
 
   const [
-    successMessage,
-    setSuccessMessage,
-  ] = useState<
-    string | null
-  >(null);
-
-  const [
     hasSubmitted,
     setHasSubmitted,
   ] = useState(false);
@@ -210,6 +212,8 @@ export function RegisterScreen({
   const {
     restrictions,
     status,
+    error,
+    reload,
   } =
     useActiveRestrictions();
 
@@ -230,14 +234,6 @@ export function RegisterScreen({
       null,
     );
 
-  const onLoginRef =
-    useRef(onLogin);
-
-  useEffect(() => {
-    onLoginRef.current =
-      onLogin;
-  }, [onLogin]);
-
   useEffect(() => {
     return () => {
       if (
@@ -250,31 +246,8 @@ export function RegisterScreen({
     };
   }, [photoPreview]);
 
-  useEffect(() => {
-    if (
-      !successMessage
-    ) {
-      return;
-    }
-
-    const timer =
-      window.setTimeout(
-        () => {
-          onLoginRef.current();
-        },
-        REDIRECT_TO_LOGIN_DELAY_MS,
-      );
-
-    return () => {
-      window.clearTimeout(
-        timer,
-      );
-    };
-  }, [successMessage]);
-
   function clearGlobalMessages() {
     setServerError(null);
-    setSuccessMessage(null);
   }
 
   function updateField<
@@ -425,16 +398,11 @@ export function RegisterScreen({
         null,
       );
 
-      setSuccessMessage(
-        null,
-      );
-
       return;
     }
 
     setErrors({});
     setServerError(null);
-    setSuccessMessage(null);
 
     setIsSubmitting(
       true,
@@ -448,9 +416,10 @@ export function RegisterScreen({
         ),
       );
 
-      setSuccessMessage(
-        "¡Cuenta creada correctamente!",
-      );
+      // Se conserva solo el correo para el paso de verificación; la
+      // contraseña se descarta junto con el resto del formulario.
+      const registeredEmail =
+        form.email.trim();
 
       setForm(
         EMPTY_FORM,
@@ -474,6 +443,10 @@ export function RegisterScreen({
       );
 
       removePhoto();
+
+      onRegistered(
+        registeredEmail,
+      );
     } catch (cause) {
       console.error(
         "No se pudo crear la cuenta:",
@@ -1106,7 +1079,7 @@ export function RegisterScreen({
                   status
                 }
                 errorMessage={
-                  undefined
+                  error
                 }
                 selectedIds={
                   selectedRestrictionIds
@@ -1115,7 +1088,7 @@ export function RegisterScreen({
                   setSelectedRestrictionIds
                 }
                 onRetry={
-                  undefined
+                  reload
                 }
               />
 
@@ -1170,22 +1143,13 @@ export function RegisterScreen({
               {/* ERROR */}
 
               {serverError && (
-                <div className="rounded-[13px] bg-[#FFF7F6] px-3 py-2 text-center">
+                <div
+                  role="alert"
+                  className="rounded-[13px] bg-[#FFF7F6] px-3 py-2 text-center"
+                >
                   <p className="text-[9px] font-semibold leading-[1.4] text-rose">
                     {
                       serverError
-                    }
-                  </p>
-                </div>
-              )}
-
-              {/* SUCCESS */}
-
-              {successMessage && (
-                <div className="rounded-[13px] bg-[#F4F6EA] px-3 py-2 text-center">
-                  <p className="text-[9px] font-bold leading-[1.4] text-leaf">
-                    {
-                      successMessage
                     }
                   </p>
                 </div>
@@ -1198,10 +1162,10 @@ export function RegisterScreen({
               <button
                 type="submit"
                 disabled={
-                  isSubmitting ||
-                  Boolean(
-                    successMessage,
-                  )
+                  isSubmitting
+                }
+                aria-busy={
+                  isSubmitting
                 }
                 className="mx-auto flex h-[45px] w-[190px] items-center justify-center rounded-full bg-rose px-6 text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(235,181,178,0.28)] transition hover:-translate-y-0.5 hover:bg-leaf disabled:cursor-not-allowed disabled:opacity-65"
               >
